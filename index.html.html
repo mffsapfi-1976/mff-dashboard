@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MFF Swing Trade Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  --bg:#0d0f12;--bg2:#13161b;--bg3:#1a1e25;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+  --text:#e8eaf0;--text2:#8b909e;--text3:#555b6a;
+  --green:#2ecc8a;--green-bg:rgba(46,204,138,0.1);
+  --red:#e05555;--red-bg:rgba(224,85,85,0.1);
+  --amber:#f0a042;--amber-bg:rgba(240,160,66,0.1);
+  --blue:#4a90e2;--blue-bg:rgba(74,144,226,0.1);
+  --purple:#9b72e8;--purple-bg:rgba(155,114,232,0.1);
+  --accent:#4a90e2;--radius:10px;--radius-sm:6px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:14px;}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;}
+
+/* HEADER */
+.header{background:var(--bg2);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.header-title{font-size:15px;font-weight:700;letter-spacing:0.05em;}
+.header-title span{color:var(--accent);}
+.header-meta{font-size:11px;color:var(--text2);font-family:'DM Mono',monospace;}
+.live-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:6px;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+/* TABS NAV */
+.tabs-nav{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 24px;display:flex;gap:0;}
+.tab-btn{padding:12px 20px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;border:none;background:transparent;border-bottom:2px solid transparent;transition:all 0.2s;font-family:'Syne',sans-serif;}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+/* LAYOUT */
+.tab-page{display:none;}.tab-page.active{display:block;}
+.container{max-width:1200px;margin:0 auto;padding:24px;}
+.section{margin-bottom:28px;}
+.section-label{font-size:10px;font-weight:700;letter-spacing:0.12em;color:var(--text3);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border);}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:18px;}
+.card-sm{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;}
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.grid-5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;}
+@media(max-width:900px){.grid-5{grid-template-columns:repeat(3,1fr)}.grid-4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.grid-5,.grid-4,.grid-3,.grid-2{grid-template-columns:1fr}}
+.metric-label{font-size:10px;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;}
+.metric-value{font-size:22px;font-weight:700;font-family:'DM Mono',monospace;}
+.metric-sub{font-size:10px;color:var(--text3);margin-top:4px;font-family:'DM Mono',monospace;}
+.green{color:var(--green);}.red{color:var(--red);}.amber{color:var(--amber);}.blue{color:var(--blue);}.muted{color:var(--text2);}
+.badge{display:inline-block;font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;font-family:'DM Mono',monospace;}
+.badge-green{background:var(--green-bg);color:var(--green);}
+.badge-amber{background:var(--amber-bg);color:var(--amber);}
+.badge-blue{background:var(--blue-bg);color:var(--blue);}
+.badge-gray{background:rgba(255,255,255,0.05);color:var(--text2);}
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+table{width:100%;border-collapse:collapse;min-width:700px;}
+th{font-size:10px;font-weight:500;color:var(--text3);text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;letter-spacing:0.06em;text-transform:uppercase;}
+td{padding:10px 10px;border-bottom:1px solid var(--border);font-size:12px;white-space:nowrap;vertical-align:middle;font-family:'DM Mono',monospace;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(255,255,255,0.02);}
+.td-ativo{font-family:'Syne',sans-serif;font-weight:500;font-size:13px;}
+.td-muted{color:var(--text2);}
+.col-brl{background:rgba(74,144,226,0.04);}
+.cambio-row{display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+.cambio-field{display:flex;flex-direction:column;gap:4px;}
+.cambio-field label{font-size:10px;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;}
+.inp-wrap{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:6px 10px;}
+.inp-wrap span{font-size:12px;color:var(--text2);font-family:'DM Mono',monospace;}
+.inp-wrap input{background:transparent;border:none;outline:none;color:var(--text);font-family:'DM Mono',monospace;font-size:15px;font-weight:500;width:80px;}
+.inp-wrap input::-webkit-inner-spin-button{-webkit-appearance:none;}
+.var-cambio{font-size:13px;font-family:'DM Mono',monospace;font-weight:500;}
+.progress-wrap{position:relative;height:5px;background:var(--border);border-radius:3px;margin-top:6px;}
+.progress-fill{height:100%;border-radius:3px;transition:width 0.4s ease;}
+.progress-meta-line{position:absolute;top:-3px;width:2px;height:11px;background:var(--text3);border-radius:1px;}
+.form-field{display:flex;flex-direction:column;gap:5px;}
+.form-field label{font-size:10px;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;}
+.form-field input,.form-field select,.form-field textarea{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;padding:8px 10px;outline:none;width:100%;transition:border 0.2s;}
+.form-field input:focus,.form-field select:focus,.form-field textarea:focus{border-color:var(--accent);}
+.form-field select option{background:var(--bg2);}
+.form-field textarea{resize:vertical;min-height:70px;font-family:'Syne',sans-serif;font-size:12px;line-height:1.6;}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);padding:9px 20px;font-family:'Syne',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:opacity 0.2s;}
+.btn:hover{opacity:0.85;}
+.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--text2);border-radius:var(--radius-sm);padding:6px 14px;font-family:'Syne',sans-serif;font-size:12px;cursor:pointer;transition:all 0.2s;}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
+.btn-clear{background:transparent;border:1px solid var(--border);color:var(--text3);border-radius:var(--radius-sm);padding:7px 12px;font-family:'Syne',sans-serif;font-size:11px;cursor:pointer;transition:all 0.2s;}
+.btn-clear:hover{border-color:var(--red);color:var(--red);}
+.form-msg{font-size:11px;margin-top:10px;font-family:'DM Mono',monospace;min-height:16px;}
+.info-box{background:var(--blue-bg);border:1px solid rgba(74,144,226,0.2);border-radius:var(--radius-sm);padding:10px 14px;font-size:11px;color:var(--blue);margin-bottom:16px;font-family:'DM Mono',monospace;line-height:1.6;}
+.tag{display:inline-block;font-size:9px;font-weight:700;letter-spacing:0.1em;padding:2px 7px;border-radius:20px;text-transform:uppercase;margin-left:8px;vertical-align:middle;}
+.tag-live{background:var(--green-bg);color:var(--green);}
+.aloc-row{margin-bottom:14px;}
+.aloc-label{display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px;}
+.aloc-name{color:var(--text2);}
+.aloc-val{font-family:'DM Mono',monospace;color:var(--text);}
+.perf-item{display:flex;align-items:flex-start;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);}
+.perf-item:last-child{border-bottom:none;}
+.perf-num{width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);flex-shrink:0;margin-top:2px;}
+.perf-body{flex:1;min-width:0;}
+.perf-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+.perf-name{font-size:13px;font-weight:500;}
+.perf-stats{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.perf-pct{font-size:16px;font-weight:700;font-family:'DM Mono',monospace;}
+.perf-detail{font-size:10px;color:var(--text2);font-family:'DM Mono',monospace;}
+.op-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.op-grid-full{grid-column:1/-1;}
+.op-grid-2{grid-column:span 2;}
+@media(max-width:900px){.op-grid{grid-template-columns:repeat(2,1fr)}.op-grid-2{grid-column:span 2}}
+@media(max-width:600px){.op-grid{grid-template-columns:1fr}.op-grid-2{grid-column:1}}
+.op-footer{display:flex;align-items:center;gap:16px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
+.ciclo-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;}
+@media(max-width:900px){.ciclo-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:600px){.ciclo-grid{grid-template-columns:1fr}}
+.ciclo-footer{display:flex;align-items:center;gap:16px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
+.hist-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
+.hist-controls{display:flex;gap:8px;align-items:center;}
+.hist-count{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;}
+.hist-toggle-btn{background:transparent;border:1px solid var(--border2);color:var(--text2);border-radius:var(--radius-sm);padding:5px 12px;font-family:'Syne',sans-serif;font-size:12px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:6px;}
+.hist-toggle-btn:hover{border-color:var(--accent);color:var(--accent);}
+.filtros-wrap{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:14px;}
+.filtros-grid{display:grid;grid-template-columns:repeat(4,1fr) auto;gap:10px;align-items:end;}
+@media(max-width:900px){.filtros-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.filtros-grid{grid-template-columns:1fr}}
+.filtro-field{display:flex;flex-direction:column;gap:5px;}
+.filtro-field label{font-size:10px;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;}
+.filtro-field input,.filtro-field select{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:'DM Mono',monospace;font-size:12px;padding:7px 10px;outline:none;width:100%;transition:border 0.2s;}
+.filtro-field input:focus,.filtro-field select:focus{border-color:var(--accent);}
+.filtro-field select option{background:var(--bg2);}
+.hist-table-wrap{overflow-x:auto;}
+.hist-table{width:100%;border-collapse:collapse;min-width:800px;}
+.hist-table th{font-size:10px;font-weight:500;color:var(--text3);text-align:left;padding:8px 12px;border-bottom:1px solid var(--border);white-space:nowrap;letter-spacing:0.06em;text-transform:uppercase;}
+.hist-table td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:12px;vertical-align:top;}
+.hist-table tr:last-child td{border-bottom:none;}
+.hist-table tr:hover td{background:rgba(255,255,255,0.02);}
+.hist-td-ativo{font-family:'Syne',sans-serif;font-weight:500;font-size:13px;}
+.hist-td-mono{font-family:'DM Mono',monospace;white-space:nowrap;}
+.hist-td-desc{font-size:11px;color:var(--text2);line-height:1.5;}
+.hist-td-comment{font-size:11px;color:var(--amber);font-style:italic;line-height:1.5;}
+.hist-td-muted{color:var(--text3);font-family:'DM Mono',monospace;font-size:11px;white-space:nowrap;}
+.hist-empty{font-size:12px;color:var(--text3);padding:24px 0;text-align:center;font-family:'DM Mono',monospace;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+.hist-table tbody tr{animation:fadeIn 0.15s ease;}
+
+/* CHARTS */
+.chart-grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:16px;}
+.chart-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px;}
+@media(max-width:900px){.chart-grid-2,.chart-grid-3{grid-template-columns:1fr}}
+.chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:18px;}
+.chart-card-full{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:16px;}
+.chart-title{font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--text3);text-transform:uppercase;margin-bottom:4px;}
+.chart-subtitle{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:16px;}
+.chart-wrap{position:relative;}
+.chart-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);font-family:'DM Mono',monospace;}
+.legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+.ind-kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px;}
+@media(max-width:1100px){.ind-kpi-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:600px){.ind-kpi-grid{grid-template-columns:repeat(2,1fr)}}
+.kpi-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;}
+.kpi-label{font-size:9px;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:5px;}
+.kpi-value{font-size:18px;font-weight:700;font-family:'DM Mono',monospace;}
+.kpi-sub{font-size:10px;color:var(--text3);margin-top:3px;font-family:'DM Mono',monospace;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">MFF <span>Swing Trade</span> Dashboard</div>
+  <div class="header-meta"><span class="live-dot"></span>dados reais — corretora</div>
+</div>
+
+<div class="tabs-nav">
+  <button class="tab-btn active" onclick="switchTab('carteira',this)">Carteira</button>
+  <button class="tab-btn" onclick="switchTab('indicadores',this)">Indicadores</button>
+  <button class="tab-btn" onclick="switchTab('operacoes',this)">Operações</button>
+  <button class="tab-btn" onclick="switchTab('historico',this)">Histórico</button>
+</div>
+
+<!-- ═══════════════ ABA CARTEIRA ═══════════════ -->
+<div id="tab-carteira" class="tab-page active">
+<div class="container">
+
+  <div class="section">
+    <div class="section-label">câmbio & configurações</div>
+    <div class="card">
+      <div class="cambio-row">
+        <div class="cambio-field"><label>USD/BRL hoje</label><div class="inp-wrap"><span>R$</span><input type="number" id="ch" value="5.03" step="0.01" oninput="recalcular()"/></div></div>
+        <div class="cambio-field"><label>câmbio entrada</label><div class="inp-wrap"><span>R$</span><input type="number" id="ce" value="4.98" step="0.01" oninput="recalcular()"/></div></div>
+        <div class="cambio-field"><label>alíquota IR</label><div class="inp-wrap"><input type="number" id="ir" value="15" step="1" oninput="recalcular()"/><span>%</span></div></div>
+        <div id="var-cambio" class="var-cambio"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">patrimônio consolidado <span class="tag tag-live">corretora 01/06/2026</span></div>
+    <div class="grid-5">
+      <div class="card-sm"><div class="metric-label">total USD</div><div class="metric-value">$6.805,53</div><div class="metric-sub">dado real corretora</div></div>
+      <div class="card-sm"><div class="metric-label">lucro não realizado</div><div class="metric-value green">+$606,65</div><div class="metric-sub">embutido nas posições</div></div>
+      <div class="card-sm"><div class="metric-label">BRL bruto</div><div class="metric-value" id="m-brl-bruto">—</div><div class="metric-sub">câmbio do dia</div></div>
+      <div class="card-sm"><div class="metric-label">IR já devido</div><div class="metric-value red" id="m-ir">—</div><div class="metric-sub">vendas anteriores</div></div>
+      <div class="card-sm"><div class="metric-label">BRL líquido</div><div class="metric-value green" id="m-brl-liq">—</div><div class="metric-sub">bruto − IR realizado</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">posições abertas</div>
+    <div class="info-box">IR potencial = estimativa caso venda hoje — não devido até a venda. IR realizado (VGT+GS+AVGO+TSM): sobre +$114,38.</div>
+    <div class="card">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>ativo</th><th>tipo</th><th>custo USD</th><th>atual USD</th><th>lucro USD</th><th>lucro %</th>
+            <th class="col-brl">câmbio</th><th class="col-brl">BRL bruto</th><th class="col-brl">IR potencial</th><th class="col-brl">BRL líquido</th>
+            <th>status</th>
+          </tr></thead>
+          <tbody id="pos-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">alocação real</div>
+    <div class="card"><div id="aloc"></div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">caixa disponível</div>
+    <div class="grid-3">
+      <div class="card-sm"><div class="metric-label">USD</div><div class="metric-value">$585,32</div></div>
+      <div class="card-sm"><div class="metric-label">BRL bruto</div><div class="metric-value" id="caixa-brl">—</div></div>
+      <div class="card-sm"><div class="metric-label">% do patrimônio</div><div class="metric-value" id="caixa-pct">—</div></div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════ ABA INDICADORES ═══════════════ -->
+<div id="tab-indicadores" class="tab-page">
+<div class="container">
+
+  <div class="section">
+    <div class="section-label">KPIs de performance</div>
+    <div class="ind-kpi-grid">
+      <div class="kpi-card"><div class="kpi-label">patrimônio USD</div><div class="kpi-value">$6.805,53</div><div class="kpi-sub">total corretora</div></div>
+      <div class="kpi-card"><div class="kpi-label">retorno total</div><div class="kpi-value green">+13,42%</div><div class="kpi-sub">sobre $600 investidos</div></div>
+      <div class="kpi-card"><div class="kpi-label">lucro não realiz.</div><div class="kpi-value green">+$606,65</div><div class="kpi-sub">em aberto</div></div>
+      <div class="kpi-card"><div class="kpi-label">lucro realizado</div><div class="kpi-value green">+$114,38</div><div class="kpi-sub">já vendido</div></div>
+      <div class="kpi-card"><div class="kpi-label">ciclos encerrados</div><div class="kpi-value" id="kpi-ciclos">1</div><div class="kpi-sub">desde 22/05</div></div>
+      <div class="kpi-card"><div class="kpi-label">média por ciclo</div><div class="kpi-value green" id="kpi-media">+6,55%</div><div class="kpi-sub">retorno médio</div></div>
+    </div>
+  </div>
+
+  <!-- GRÁFICO 1: Evolução patrimônio — LINHA ÁREA -->
+  <div class="section">
+    <div class="chart-card-full">
+      <div class="chart-title">evolução do patrimônio</div>
+      <div class="chart-subtitle">USD ao longo do tempo — desde o aporte inicial</div>
+      <div class="chart-wrap" style="height:260px;">
+        <canvas id="chart-patrimonio" role="img" aria-label="Gráfico de evolução do patrimônio em USD ao longo do tempo">Evolução patrimonial desde 22/05/2026.</canvas>
+      </div>
+      <div class="chart-legend">
+        <span class="legend-item"><span class="legend-dot" style="background:#4a90e2"></span>patrimônio total USD</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#2ecc8a"></span>lucro acumulado</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- GRÁFICOS 2+3: Retorno por ciclo + BRL bruto vs líquido -->
+  <div class="chart-grid-2">
+    <div class="chart-card">
+      <div class="chart-title">retorno % por ciclo</div>
+      <div class="chart-subtitle">consistência — meta: 3% por ciclo</div>
+      <div class="chart-wrap" style="height:220px;">
+        <canvas id="chart-ciclos" role="img" aria-label="Retorno percentual por ciclo de swing trade">Retorno por ciclo liquidado.</canvas>
+      </div>
+      <div class="chart-legend">
+        <span class="legend-item"><span class="legend-dot" style="background:#2ecc8a"></span>retorno % ciclo</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#555b6a;border:1px dashed #8b909e"></span>meta 3%</span>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">BRL bruto vs líquido</div>
+      <div class="chart-subtitle">impacto do IR e câmbio por posição</div>
+      <div class="chart-wrap" style="height:220px;">
+        <canvas id="chart-brl" role="img" aria-label="Comparativo BRL bruto versus líquido por posição">Comparativo BRL bruto e líquido.</canvas>
+      </div>
+      <div class="chart-legend">
+        <span class="legend-item"><span class="legend-dot" style="background:#4a90e2"></span>BRL bruto</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#2ecc8a"></span>BRL líquido</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- GRÁFICOS 4+5+6: Alocação donut + Lucro por ativo + Câmbio -->
+  <div class="chart-grid-3">
+    <div class="chart-card">
+      <div class="chart-title">alocação da carteira</div>
+      <div class="chart-subtitle">distribuição % atual</div>
+      <div class="chart-wrap" style="height:200px;">
+        <canvas id="chart-aloc" role="img" aria-label="Alocação percentual da carteira em donut">Distribuição da carteira.</canvas>
+      </div>
+      <div class="chart-legend" id="legend-aloc"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">lucro por ativo</div>
+      <div class="chart-subtitle">USD — realizados e em aberto</div>
+      <div class="chart-wrap" style="height:200px;">
+        <canvas id="chart-lucro" role="img" aria-label="Lucro em USD por ativo">Lucro por ativo.</canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">câmbio USD/BRL</div>
+      <div class="chart-subtitle">variação no período operado</div>
+      <div class="chart-wrap" style="height:200px;">
+        <canvas id="chart-cambio" role="img" aria-label="Variação do câmbio USD/BRL no período">Câmbio USD/BRL no período.</canvas>
+      </div>
+      <div class="chart-legend">
+        <span class="legend-item"><span class="legend-dot" style="background:#9b72e8"></span>USD/BRL</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#f0a042"></span>câmbio compra</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════ ABA OPERAÇÕES ═══════════════ -->
+<div id="tab-operacoes" class="tab-page">
+<div class="container">
+
+  <div class="section">
+    <div class="section-label">registro de performance — ciclos liquidados</div>
+    <div class="card">
+      <div class="grid-4" style="margin-bottom:16px;">
+        <div class="card-sm"><div class="metric-label">ciclos encerrados</div><div class="metric-value" id="p-ciclos">—</div></div>
+        <div class="card-sm"><div class="metric-label">retorno médio/ciclo</div><div class="metric-value green" id="p-media">—</div></div>
+        <div class="card-sm"><div class="metric-label">melhor ciclo</div><div class="metric-value green" id="p-melhor">—</div></div>
+        <div class="card-sm"><div class="metric-label">taxa de acerto</div><div class="metric-value green" id="p-acerto">—</div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+        <span style="font-size:11px;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;">meta por ciclo</span>
+        <div class="inp-wrap"><input type="number" id="meta" value="3" step="0.5" style="width:50px;" oninput="renderPerf()"/><span>%</span></div>
+      </div>
+      <div id="perf-lista"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">registrar liquidação de ciclo</div>
+    <div class="card">
+      <div class="ciclo-grid">
+        <div class="form-field"><label>ativo</label><input type="text" id="f-ativo" placeholder="ex: NVDA"/></div>
+        <div class="form-field"><label>capital USD</label><input type="number" id="f-capital" placeholder="ex: 200.00"/></div>
+        <div class="form-field"><label>lucro líq. USD</label><input type="number" id="f-lucro" placeholder="ex: 13.10"/></div>
+        <div class="form-field"><label>dias do ciclo</label><input type="number" id="f-dias" placeholder="ex: 7"/></div>
+        <div class="form-field"><label>data</label><input type="text" id="f-data" placeholder="ex: 02/06/2026"/></div>
+      </div>
+      <div class="ciclo-footer">
+        <button class="btn" onclick="registrarCiclo()">+ registrar ciclo</button>
+        <div class="form-msg" id="msg-ciclo"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">registrar nova operação</div>
+    <div class="card">
+      <div class="op-grid">
+        <div class="form-field"><label>ativo</label><input type="text" id="o-ativo" placeholder="ex: NVDA"/></div>
+        <div class="form-field"><label>tipo</label><select id="o-tipo"><option>compra</option><option>venda</option><option>aporte</option></select></div>
+        <div class="form-field"><label>valor atual USD</label><input type="number" id="o-valor" placeholder="ex: 220.00"/></div>
+        <div class="form-field"><label>lucro USD (se venda)</label><input type="number" id="o-lucro" placeholder="ex: 12.50"/></div>
+        <div class="form-field"><label>data</label><input type="text" id="o-data" placeholder="ex: 02/06/2026"/></div>
+        <div class="form-field op-grid-2"><label>descrição do ativo</label><input type="text" id="o-desc" placeholder="ex: ETF Vanguard — replica Nasdaq tech"/></div>
+        <div class="form-field op-grid-full"><label>comentários</label><textarea id="o-comment" placeholder="ex: entrada após correção de 8%, Computex como catalisador..."></textarea></div>
+      </div>
+      <div class="op-footer">
+        <button class="btn" onclick="registrarOp()">+ registrar operação</button>
+        <div class="form-msg" id="msg-op"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════ ABA HISTÓRICO ═══════════════ -->
+<div id="tab-historico" class="tab-page">
+<div class="container">
+  <div class="section">
+    <div class="section-label">histórico completo de operações</div>
+    <div class="card">
+      <div class="hist-header">
+        <div class="hist-controls">
+          <button class="hist-toggle-btn" onclick="toggleHist()" id="hist-btn"><span id="hist-icon">▾</span><span id="hist-txt">recolher</span></button>
+          <span class="hist-count" id="hist-count"></span>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-ghost" onclick="toggleFiltros()" id="filtros-btn">⚙ filtros</button>
+          <button class="btn-clear" onclick="limparFiltros()">✕ limpar</button>
+        </div>
+      </div>
+      <div id="filtros-box" style="display:none;">
+        <div class="filtros-wrap">
+          <div class="filtros-grid">
+            <div class="filtro-field"><label>ativo</label><input type="text" id="fil-ativo" placeholder="ex: NVDA" oninput="renderHist()"/></div>
+            <div class="filtro-field"><label>operação</label>
+              <select id="fil-tipo" onchange="renderHist()">
+                <option value="">todos</option><option value="compra">compra</option><option value="venda">venda</option><option value="aporte">aporte</option><option value="update">update</option>
+              </select>
+            </div>
+            <div class="filtro-field"><label>data (contém)</label><input type="text" id="fil-data" placeholder="ex: 05/2026" oninput="renderHist()"/></div>
+            <div class="filtro-field"><label>busca livre</label><input type="text" id="fil-busca" placeholder="descrição ou comentário..." oninput="renderHist()"/></div>
+            <button class="btn-clear" onclick="limparFiltros()" style="align-self:flex-end;">✕ limpar</button>
+          </div>
+        </div>
+      </div>
+      <div id="hist-body">
+        <div class="hist-table-wrap">
+          <table class="hist-table">
+            <thead><tr>
+              <th>data</th><th>operação</th><th>ativo</th><th>valor</th><th>descrição do ativo</th><th>obs / cálculo</th><th>comentários</th>
+            </tr></thead>
+            <tbody id="hist-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+const TOTAL_REAL=6805.53,LUCRO_REAL=114.38,CAIXA=585.32;
+const CH=()=>parseFloat(document.getElementById('ch').value)||5.03;
+const CE=()=>parseFloat(document.getElementById('ce').value)||4.98;
+const IR=()=>parseFloat(document.getElementById('ir').value)/100||0.15;
+const META=()=>parseFloat(document.getElementById('meta').value)||3;
+
+let posicoes=JSON.parse(localStorage.getItem('mff_pos')||'null')||[
+  {ativo:'S&P 500 ETF',tipo:'ETF',  atual:4698.63,lucro:585.51,stop:'—',   alvo:'+15%',     status:'manter',        badge:'badge-green'},
+  {ativo:'USO',        tipo:'Ações',atual:1458.20,lucro:9.97,  stop:'—',   alvo:'monitorar',status:'manter',        badge:'badge-green'},
+  {ativo:'NBIS',       tipo:'Swing',atual:61.03,  lucro:11.17, stop:'—',   alvo:'$300+',    status:'manter',        badge:'badge-green'},
+  {ativo:'NVDA',       tipo:'Swing',atual:204.86, lucro:0,     stop:'$202',alvo:'$252',     status:'entrada amanhã',badge:'badge-amber'},
+  {ativo:'GOOGL',      tipo:'Swing',atual:175.60, lucro:0,     stop:'$345',alvo:'$430',     status:'entrada amanhã',badge:'badge-amber'},
+  {ativo:'AMD',        tipo:'Swing',atual:146.33, lucro:0,     stop:'$460',alvo:'$570',     status:'aguardar $495', badge:'badge-blue'},
+];
+
+let ciclos=JSON.parse(localStorage.getItem('mff_ciclos')||'null')||[
+  {num:1,ativo:'Carteira (VGT+GS+AVGO+TSM+NBIS)',capital:600,lucro:46.25,pct:6.55,dias:10,data:'29/05/2026'},
+];
+
+let historico=JSON.parse(localStorage.getItem('mff_hist')||'null')||[
+  {data:'22/05/2026',tipo:'aporte',ativo:'Carteira', valor:'$600,00',  desc:'aporte inicial',                       obs:'distribuído em 5 ativos',                 comment:'',cor:'#4a90e2'},
+  {data:'22/05/2026',tipo:'compra',ativo:'VGT',      valor:'$120,00',  desc:'ETF Vanguard Information Technology',  obs:'entrada primeiro ciclo',                  comment:'',cor:'#4a90e2'},
+  {data:'22/05/2026',tipo:'compra',ativo:'GS',       valor:'$120,00',  desc:'Goldman Sachs — NYSE',                 obs:'entrada primeiro ciclo',                  comment:'',cor:'#4a90e2'},
+  {data:'22/05/2026',tipo:'compra',ativo:'AVGO',     valor:'$120,00',  desc:'Broadcom — chips IA customizados',     obs:'entrada primeiro ciclo',                  comment:'',cor:'#4a90e2'},
+  {data:'22/05/2026',tipo:'compra',ativo:'TSM',      valor:'$120,00',  desc:'Taiwan Semiconductor — maior fab chips',obs:'entrada primeiro ciclo',                 comment:'',cor:'#4a90e2'},
+  {data:'22/05/2026',tipo:'compra',ativo:'NBIS',     valor:'$50,00',   desc:'Nebius — neocloud infraestrutura IA',  obs:'posição especulativa',                    comment:'contrato Meta $27bi · Goldman Buy $205',cor:'#4a90e2'},
+  {data:'29/05/2026',tipo:'venda', ativo:'VGT',      valor:'+$16,32',  desc:'ETF Vanguard Information Technology',  obs:'lucro realizado',                         comment:'saiu na máxima de 52 semanas',cor:'#2ecc8a'},
+  {data:'29/05/2026',tipo:'venda', ativo:'GS',       valor:'+$8,06',   desc:'Goldman Sachs — NYSE',                 obs:'lucro realizado',                         comment:'ATH absoluto — ciclo maduro',cor:'#2ecc8a'},
+  {data:'29/05/2026',tipo:'venda', ativo:'AVGO',     valor:'+$27,60',  desc:'Broadcom Inc.',                        obs:'lucro realizado antes dos earnings',       comment:'saiu antes do earnings 3/jun — risco gerenciado',cor:'#2ecc8a'},
+  {data:'29/05/2026',tipo:'venda', ativo:'TSM',      valor:'+$62,40',  desc:'Taiwan Semiconductor',                 obs:'lucro realizado — maior retorno do ciclo', comment:'melhor trade do ciclo 1 · +52% em 7 dias',cor:'#2ecc8a'},
+  {data:'01/06/2026',tipo:'update',ativo:'Corretora',valor:'$6.805,53',desc:'snapshot completo da carteira',        obs:'total real confirmado',                    comment:'S&P500 $4.698,63 · USO $1.458,20 · NBIS $61,03 · caixa $585,32',cor:'#f0a042'},
+];
+
+let histAberto=true,filtrosAbertos=false;
+let charts={};
+
+function fmt(n){return n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function fU(n){return '$'+fmt(n);}
+function fB(n){return 'R$ '+fmt(n);}
+function salvar(){
+  localStorage.setItem('mff_pos',JSON.stringify(posicoes));
+  localStorage.setItem('mff_ciclos',JSON.stringify(ciclos));
+  localStorage.setItem('mff_hist',JSON.stringify(historico));
+}
+
+// CHART DEFAULTS
+Chart.defaults.color='#555b6a';
+Chart.defaults.borderColor='rgba(255,255,255,0.06)';
+Chart.defaults.font.family="'DM Mono', monospace";
+Chart.defaults.font.size=11;
+
+function mkChart(id,config){
+  if(charts[id]){charts[id].destroy();}
+  charts[id]=new Chart(document.getElementById(id),config);
+  return charts[id];
+}
+
+function buildCharts(){
+  // 1. Evolução patrimônio — área
+  mkChart('chart-patrimonio',{
+    type:'line',
+    data:{
+      labels:['22/05','23/05','25/05','27/05','29/05','01/06'],
+      datasets:[
+        {label:'patrimônio USD',data:[600,612,631,648,646.25,6805.53],
+         borderColor:'#4a90e2',backgroundColor:'rgba(74,144,226,0.08)',
+         borderWidth:2,pointRadius:4,pointBackgroundColor:'#4a90e2',
+         fill:true,tension:0.3},
+        {label:'lucro acumulado',data:[0,12,31,48,46.25,606.65],
+         borderColor:'#2ecc8a',backgroundColor:'rgba(46,204,138,0.06)',
+         borderWidth:2,pointRadius:4,pointBackgroundColor:'#2ecc8a',
+         fill:true,tension:0.3,borderDash:[4,3]},
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,backgroundColor:'#1a1e25',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#8b909e',callbacks:{label:ctx=>`${ctx.dataset.label}: $${fmt(ctx.parsed.y)}`}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555b6a'}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555b6a',callback:v=>'$'+v.toLocaleString('pt-BR')}}}}
+  });
+
+  // 2. Retorno % por ciclo — barras com linha meta
+  const totalCiclos=ciclos.length;
+  const metaVal=META();
+  mkChart('chart-ciclos',{
+    type:'bar',
+    data:{
+      labels:ciclos.map(c=>`Ciclo ${c.num}`),
+      datasets:[
+        {label:'retorno %',data:ciclos.map(c=>c.pct),
+         backgroundColor:ciclos.map(c=>c.pct>=metaVal?'rgba(46,204,138,0.7)':'rgba(224,85,85,0.6)'),
+         borderColor:ciclos.map(c=>c.pct>=metaVal?'#2ecc8a':'#e05555'),
+         borderWidth:1.5,borderRadius:4},
+        {label:'meta',data:ciclos.map(()=>metaVal),
+         type:'line',borderColor:'#555b6a',borderDash:[5,4],
+         borderWidth:1.5,pointRadius:0,fill:false},
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1e25',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#8b909e',callbacks:{label:ctx=>ctx.datasetIndex===0?`retorno: +${fmt(ctx.parsed.y)}%`:`meta: ${fmt(ctx.parsed.y)}%`}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555b6a',autoSkip:false}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555b6a',callback:v=>v+'%'}}}}
+  });
+
+  // 3. BRL bruto vs líquido — barras agrupadas por posição
+  const posCom=posicoes.filter(p=>p.lucro>0);
+  const ch=CH(),ir=IR();
+  mkChart('chart-brl',{
+    type:'bar',
+    data:{
+      labels:posCom.map(p=>p.ativo),
+      datasets:[
+        {label:'BRL bruto',data:posCom.map(p=>parseFloat((p.atual*ch).toFixed(2))),backgroundColor:'rgba(74,144,226,0.6)',borderColor:'#4a90e2',borderWidth:1.5,borderRadius:3},
+        {label:'BRL líquido',data:posCom.map(p=>parseFloat(((p.atual*ch)-(p.lucro*ch*ir)).toFixed(2))),backgroundColor:'rgba(46,204,138,0.6)',borderColor:'#2ecc8a',borderWidth:1.5,borderRadius:3},
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1e25',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#8b909e',callbacks:{label:ctx=>`${ctx.dataset.label}: R$ ${fmt(ctx.parsed.y)}`}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555b6a',autoSkip:false}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555b6a',callback:v=>'R$'+v.toLocaleString('pt-BR')}}}}
+  });
+
+  // 4. Alocação donut
+  const alocData=[4698.63,1458.20,CAIXA,61.03];
+  const alocLabels=['S&P 500 ETF','USO','Caixa','NBIS'];
+  const alocColors=['#4a90e2','#f0a042','#555b6a','#2ecc8a'];
+  mkChart('chart-aloc',{
+    type:'doughnut',
+    data:{labels:alocLabels,datasets:[{data:alocData,backgroundColor:alocColors.map(c=>c+'cc'),borderColor:alocColors,borderWidth:1.5,hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1e25',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#8b909e',callbacks:{label:ctx=>`${ctx.label}: $${fmt(ctx.parsed)} (${((ctx.parsed/TOTAL_REAL)*100).toFixed(1)}%)`}}}}
+  });
+  const legAloc=document.getElementById('legend-aloc');
+  if(legAloc){legAloc.innerHTML=alocLabels.map((l,i)=>`<span class="legend-item"><span class="legend-dot" style="background:${alocColors[i]}"></span>${l} ${((alocData[i]/TOTAL_REAL)*100).toFixed(1)}%</span>`).join('');}
+
+  // 5. Lucro por ativo — barras horizontais
+  const lucAtivos=['VGT','GS','AVGO','TSM','S&P 500','USO','NBIS'];
+  const lucVals=[16.32,8.06,27.60,62.40,585.51,9.97,11.17];
+  const lucColors=lucVals.map(v=>v>50?'rgba(155,114,232,0.7)':v>20?'rgba(46,204,138,0.7)':'rgba(74,144,226,0.6)');
+  mkChart('chart-lucro',{
+    type:'bar',
+    data:{labels:lucAtivos,datasets:[{label:'lucro USD',data:lucVals,backgroundColor:lucColors,borderColor:lucColors.map(c=>c.replace('0.7','1').replace('0.6','1')),borderWidth:1.5,borderRadius:3}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1e25',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#8b909e',callbacks:{label:ctx=>`lucro: +$${fmt(ctx.parsed.x)}`}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555b6a',callback:v=>'$'+v}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8b909e',autoSkip:false}}}}
+  });
+
+  // 6. Câmbio USD/BRL — linha
+  // Dados reais PTAX/mercado — fontes: BCB, Bloomberg, Wise
+  // 22/05: câmbio entrada confirmado pelo usuário
+  // 23/05: fechamento mercado (sexta anterior ao fim de semana)
+  // 26/05: segunda-feira pós feriado
+  // 27/05: máxima da semana conforme Wise
+  // 28/05: recuo intraday
+  // 29/05: fechamento Bloomberg 5.0357
+  // 01/06: Bloomberg 5.0181
+  mkChart('chart-cambio',{
+    type:'line',
+    data:{
+      labels:['22/05','23/05','26/05','27/05','28/05','29/05','01/06'],
+      datasets:[
+        {label:'USD/BRL (PTAX)',data:[4.98,5.00,5.0039,5.0661,5.0450,5.0357,5.0181],
+         borderColor:'#9b72e8',backgroundColor:'rgba(155,114,232,0.07)',
+         borderWidth:2,pointRadius:5,pointBackgroundColor:'#9b72e8',
+         pointBorderColor:'#0d0f12',pointBorderWidth:1.5,
+         fill:true,tension:0.3},
+        {label:'câmbio de compra (entrada)',data:[4.98,4.98,4.98,4.98,4.98,4.98,4.98],
+         borderColor:'#f0a042',borderDash:[5,4],borderWidth:1.5,pointRadius:0,fill:false},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{mode:'index',intersect:false,backgroundColor:'#1a1e25',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#8b909e',
+          callbacks:{
+            label:ctx=>`${ctx.dataset.label}: R$ ${ctx.parsed.y.toFixed(4)}`,
+            afterBody:ctx=>{
+              const ptax=ctx[0]?.parsed.y;
+              const base=4.98;
+              if(!ptax)return '';
+              const diff=((ptax-base)/base*100).toFixed(2);
+              return `variação vs compra: ${diff>=0?'+':''}${diff}%`;
+            }
+          }
+        }
+      },
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555b6a',autoSkip:false}},
+        y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555b6a',callback:v=>'R$ '+v.toFixed(4)},min:4.94,max:5.10}
+      }
+    }
+  });
+}
+
+function switchTab(name,el){
+  document.querySelectorAll('.tab-page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  el.classList.add('active');
+  if(name==='indicadores'){setTimeout(buildCharts,50);}
+}
+
+function recalcular(){
+  const ch=CH(),ce=CE(),ir=IR();
+  const vp=((ch-ce)/ce*100).toFixed(2),sc=vp>=0?'+':'',cc=vp>=0?'var(--green)':'var(--red)';
+  document.getElementById('var-cambio').innerHTML=`<span style="color:var(--text2);font-size:11px;">variação câmbio: </span><span style="color:${cc}">${sc}${vp}%</span>`;
+  const brlB=TOTAL_REAL*ch,irD=LUCRO_REAL*ch*ir;
+  document.getElementById('m-brl-bruto').textContent=fB(brlB);
+  document.getElementById('m-ir').textContent='− '+fB(irD);
+  document.getElementById('m-brl-liq').textContent=fB(brlB-irD);
+  document.getElementById('caixa-brl').textContent=fB(CAIXA*ch);
+  document.getElementById('caixa-pct').textContent=((CAIXA/TOTAL_REAL)*100).toFixed(1)+'%';
+  document.getElementById('pos-tbody').innerHTML=posicoes.map(p=>{
+    const custo=p.atual-p.lucro,lp=custo>0&&p.lucro>0?((p.lucro/custo)*100).toFixed(2):0;
+    const brlB2=p.atual*ch,irP=p.lucro>0?p.lucro*ch*ir:0,brlL=brlB2-irP;
+    return `<tr><td class="td-ativo">${p.ativo}</td><td class="td-muted" style="font-size:10px">${p.tipo}</td><td class="td-muted">${fU(custo)}</td><td>${fU(p.atual)}</td><td>${p.lucro>0?`<span class="green">+${fU(p.lucro)}</span>`:'<span class="muted">—</span>'}</td><td>${p.lucro>0?`<span class="green">+${lp}%</span>`:'<span class="muted">—</span>'}</td><td class="col-brl" style="font-weight:500">R$ ${fmt(ch)}</td><td class="col-brl">${fB(brlB2)}</td><td class="col-brl">${irP>0?`<span class="red">− R$ ${fmt(irP)}</span>`:'<span class="muted" style="font-size:10px">não devido</span>'}</td><td class="col-brl" style="font-weight:500">${fB(brlL)}</td><td><span class="badge ${p.badge}">${p.status}</span></td></tr>`;
+  }).join('');
+  const alocs=[{nome:'S&P 500 ETF',valor:4698.63,cor:'#4a90e2'},{nome:'USO',valor:1458.20,cor:'#f0a042'},{nome:'Caixa',valor:CAIXA,cor:'#555b6a'},{nome:'NBIS',valor:61.03,cor:'#2ecc8a'}];
+  document.getElementById('aloc').innerHTML=alocs.map(a=>{const pct=((a.valor/TOTAL_REAL)*100).toFixed(1);return `<div class="aloc-row"><div class="aloc-label"><span class="aloc-name">${a.nome}</span><span class="aloc-val">${fU(a.valor)} <strong>${pct}%</strong></span></div><div class="progress-wrap"><div class="progress-fill" style="width:${pct}%;background:${a.cor}"></div></div></div>`;}).join('');
+}
+
+function renderPerf(){
+  const meta=META(),total=ciclos.length;
+  const acertos=ciclos.filter(c=>c.pct>=meta).length;
+  const media=total>0?ciclos.reduce((s,c)=>s+c.pct,0)/total:0;
+  const melhor=total>0?Math.max(...ciclos.map(c=>c.pct)):0;
+  document.getElementById('p-ciclos').textContent=total;
+  document.getElementById('p-media').textContent='+'+media.toFixed(2)+'%';
+  document.getElementById('p-melhor').textContent='+'+melhor.toFixed(2)+'%';
+  document.getElementById('p-acerto').textContent=total>0?((acertos/total)*100).toFixed(0)+'%':'—';
+  const maxP=Math.max(...ciclos.map(c=>c.pct),meta*1.5,10);
+  document.getElementById('perf-lista').innerHTML=ciclos.length===0?'<div style="font-size:12px;color:var(--text3);padding:12px 0;">nenhum ciclo registrado ainda.</div>':ciclos.map(c=>{
+    const ok=c.pct>=meta,bw=Math.min((c.pct/maxP)*100,100),mw=Math.min((meta/maxP)*100,100),cor=ok?'var(--green)':'var(--red)';
+    return `<div class="perf-item"><div class="perf-num">${c.num}</div><div class="perf-body"><div class="perf-top"><span class="perf-name">${c.ativo}</span><div class="perf-stats"><span class="perf-detail">${c.data} · ${c.dias}d</span><span class="perf-pct" style="color:${cor}">+${c.pct.toFixed(2)}%</span><span class="perf-detail green">+${fU(c.lucro)}</span><span class="badge ${ok?'badge-green':'badge-gray'}">${ok?'meta ✓':'abaixo'}</span></div></div><div class="progress-wrap"><div class="progress-fill" style="width:${bw}%;background:${cor}"></div><div class="progress-meta-line" style="left:${mw}%"></div></div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:3px;font-family:'DM Mono',monospace;"><span>capital: ${fU(c.capital)}</span><span>meta: ${meta}%</span></div></div></div>`;
+  }).join('');
+  if(document.getElementById('kpi-ciclos')){document.getElementById('kpi-ciclos').textContent=total;}
+  if(document.getElementById('kpi-media')){document.getElementById('kpi-media').textContent=total>0?'+'+media.toFixed(2)+'%':'—';}
+}
+
+function renderHist(){
+  const fA=(document.getElementById('fil-ativo').value||'').toLowerCase();
+  const fT=document.getElementById('fil-tipo').value||'';
+  const fD=(document.getElementById('fil-data').value||'').toLowerCase();
+  const fB2=(document.getElementById('fil-busca').value||'').toLowerCase();
+  const lista=historico.slice().reverse().filter(h=>{
+    if(fA&&!h.ativo.toLowerCase().includes(fA))return false;
+    if(fT&&h.tipo!==fT)return false;
+    if(fD&&!h.data.toLowerCase().includes(fD))return false;
+    if(fB2&&!(h.obs+' '+h.desc+' '+h.comment).toLowerCase().includes(fB2))return false;
+    return true;
+  });
+  document.getElementById('hist-count').textContent=`${lista.length} de ${historico.length} registros`;
+  const tbody=document.getElementById('hist-tbody');
+  if(lista.length===0){tbody.innerHTML=`<tr><td colspan="7" class="hist-empty">nenhum registro encontrado.</td></tr>`;return;}
+  const tipoBadge={compra:'badge-blue',venda:'badge-green',aporte:'badge-amber',update:'badge-gray'};
+  tbody.innerHTML=lista.map(h=>`<tr><td class="hist-td-mono" style="color:var(--text3)">${h.data}</td><td><span class="badge ${tipoBadge[h.tipo]||'badge-gray'}">${h.tipo}</span></td><td class="hist-td-ativo">${h.ativo}</td><td class="hist-td-mono" style="color:${h.tipo==='venda'?'var(--green)':h.tipo==='aporte'?'var(--amber)':'var(--text)'};font-weight:500">${h.valor}</td><td class="hist-td-desc">${h.desc||'<span style="color:var(--text3)">—</span>'}</td><td class="hist-td-desc">${h.obs||'<span style="color:var(--text3)">—</span>'}</td><td class="hist-td-comment">${h.comment||'<span style="color:var(--text3);font-style:normal">—</span>'}</td></tr>`).join('');
+}
+
+function toggleHist(){
+  histAberto=!histAberto;
+  document.getElementById('hist-body').style.display=histAberto?'block':'none';
+  document.getElementById('hist-txt').textContent=histAberto?'recolher':'expandir';
+  document.getElementById('hist-icon').textContent=histAberto?'▾':'▸';
+}
+
+function toggleFiltros(){
+  filtrosAbertos=!filtrosAbertos;
+  document.getElementById('filtros-box').style.display=filtrosAbertos?'block':'none';
+  document.getElementById('filtros-btn').textContent=filtrosAbertos?'✕ fechar':'⚙ filtros';
+}
+
+function limparFiltros(){
+  ['fil-ativo','fil-data','fil-busca'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fil-tipo').value='';
+  renderHist();
+}
+
+function registrarCiclo(){
+  const ativo=document.getElementById('f-ativo').value.trim().toUpperCase();
+  const capital=parseFloat(document.getElementById('f-capital').value);
+  const lucro=parseFloat(document.getElementById('f-lucro').value);
+  const dias=parseInt(document.getElementById('f-dias').value)||0;
+  const data=document.getElementById('f-data').value.trim()||new Date().toLocaleDateString('pt-BR');
+  const msg=document.getElementById('msg-ciclo');
+  if(!ativo||isNaN(capital)||isNaN(lucro)){msg.style.color='var(--red)';msg.textContent='preencha ativo, capital e lucro.';return;}
+  const pct=(lucro/capital)*100;
+  ciclos.push({num:ciclos.length+1,ativo,capital,lucro,pct,dias,data});
+  salvar();renderPerf();
+  ['f-ativo','f-capital','f-lucro','f-dias','f-data'].forEach(id=>document.getElementById(id).value='');
+  msg.style.color='var(--green)';msg.textContent=`ciclo ${ciclos.length} registrado — ${ativo} +${pct.toFixed(2)}%`;
+  setTimeout(()=>msg.textContent='',4000);
+}
+
+function registrarOp(){
+  const ativo=document.getElementById('o-ativo').value.trim().toUpperCase();
+  const valor=parseFloat(document.getElementById('o-valor').value);
+  const lucro=parseFloat(document.getElementById('o-lucro').value)||0;
+  const tipo=document.getElementById('o-tipo').value;
+  const data=document.getElementById('o-data').value.trim()||new Date().toLocaleDateString('pt-BR');
+  const desc=document.getElementById('o-desc').value.trim();
+  const comment=document.getElementById('o-comment').value.trim();
+  const msg=document.getElementById('msg-op');
+  if(!ativo||isNaN(valor)){msg.style.color='var(--red)';msg.textContent='preencha ativo e valor.';return;}
+  const ch=CH(),ir=IR();
+  const irBrl=lucro>0?lucro*ch*ir:0,liqBrl=(valor*ch)-irBrl;
+  const obs=tipo==='venda'&&lucro>0?`câmbio R$ ${fmt(ch)} · BRL bruto R$ ${fmt(valor*ch)} · IR R$ ${fmt(irBrl)} · líquido R$ ${fmt(liqBrl)}`:`câmbio R$ ${fmt(ch)} · BRL R$ ${fmt(valor*ch)}`;
+  const cor=tipo==='venda'?'#2ecc8a':tipo==='aporte'?'#f0a042':'#4a90e2';
+  historico.push({data,tipo,ativo,valor:fU(valor),obs,desc,comment,cor});
+  salvar();renderHist();
+  ['o-ativo','o-valor','o-lucro','o-data','o-desc','o-comment'].forEach(id=>document.getElementById(id).value='');
+  msg.style.color='var(--green)';msg.textContent=`registrado: ${tipo} ${ativo} — líquido R$ ${fmt(liqBrl)}`;
+  setTimeout(()=>msg.textContent='',4000);
+}
+
+recalcular();renderPerf();renderHist();
+</script>
+</body>
+</html>
