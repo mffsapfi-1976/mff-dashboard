@@ -1,2 +1,2 @@
 # mff-dashboard
-index.html
+MFF Swing Trade Dashboard
